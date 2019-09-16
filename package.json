@@ -1,6 +1,6 @@
 {
   "name": "webda-aws",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Webda AWS Services implementation",
   "main": "lib/index.js",
   "scripts": {
@@ -33,7 +33,7 @@
     "@types/node": "^10.7.0",
     "aws-sdk": "^2.311.0",
     "uuid": "^3.3.2",
-    "webda": "^0.11.1"
+    "webda": "^0.11.6"
   },
   "devDependencies": {
     "@types/node": "^9.6.2",
