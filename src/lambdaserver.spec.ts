@@ -2,7 +2,7 @@ import { WebdaTest } from "webda/lib/test";
 import { test, suite } from "mocha-typescript";
 import * as assert from "assert";
 import { LambdaServer } from "./lambdaserver";
-import { Executor, Service } from "webda";
+import { Executor, Service, RequestFilter } from "webda";
 
 class ExceptionExecutor extends Executor {
   initRoutes() {
@@ -20,11 +20,15 @@ class ExceptionExecutor extends Executor {
 }
 
 @suite
-class LambdaHandlerTest extends WebdaTest {
+class LambdaHandlerTest extends WebdaTest implements RequestFilter {
   evt: any;
   handler: LambdaServer;
   debugMailer: any;
   context: any = {};
+
+  async checkCSRF(ctx: NuxeoContext): Promise<boolean> {
+    return true;
+  }
 
   async before() {
     this.handler = new LambdaServer(this.getTestConfiguration());
@@ -112,12 +116,14 @@ class LambdaHandlerTest extends WebdaTest {
 
   @test
   async handleRequestKnownRoute() {
+    this.handler.registerCorsFilter(this);
     let res = await this.handler.handleRequest(this.evt, this.context);
     assert.equal(res.body, "CodeCoverage");
   }
 
   @test
   async handleRequestUnknownRoute() {
+    this.handler.registerCorsFilter(this);
     this.evt.path = "/route/unknown";
     delete this.evt.headers.Cookie;
     let res = await this.handler.handleRequest(this.evt, this.context);
@@ -126,6 +132,7 @@ class LambdaHandlerTest extends WebdaTest {
 
   @test
   async handleRequestThrow401() {
+    this.handler.registerCorsFilter(this);
     this.evt.path = "/broken/401";
     let res = await this.handler.handleRequest(this.evt, this.context);
     assert.equal(res.statusCode, 401);
@@ -133,6 +140,7 @@ class LambdaHandlerTest extends WebdaTest {
 
   @test
   async handleRequestThrowError() {
+    this.handler.registerCorsFilter(this);
     this.evt.path = "/broken/Error";
     let res = await this.handler.handleRequest(this.evt, this.context);
     assert.equal(res.statusCode, 500);
@@ -140,6 +148,7 @@ class LambdaHandlerTest extends WebdaTest {
 
   @test
   async handleRequestOPTIONS() {
+    this.handler.registerCorsFilter(this);
     this.evt.httpMethod = "OPTIONS";
     let res = await this.handler.handleRequest(this.evt, this.context);
     assert.equal(res.statusCode, 204);
@@ -148,6 +157,7 @@ class LambdaHandlerTest extends WebdaTest {
 
   @test
   async handleRequestOPTIONSWith404() {
+    this.handler.registerCorsFilter(this);
     this.evt.path = "/route/unknown";
     this.evt.httpMethod = "OPTIONS";
     let res = await this.handler.handleRequest(this.evt, this.context);
