@@ -1,6 +1,6 @@
 {
   "name": "webda-aws",
-  "version": "0.11.5",
+  "version": "0.11.6",
   "description": "Webda AWS Services implementation",
   "main": "lib/index.js",
   "scripts": {
