@@ -166,7 +166,7 @@ export default class LambdaServer extends Webda {
       for (i in event.queryStringParameters) {
         // If additional error code it will be contained so need to check for &
         // May need to add urlencode
-        resourcePath += sep + i + "=" + event.queryStringParameters[i];
+        resourcePath += sep + i + "=" + encodeURIComponent(event.queryStringParameters[i]);
         sep = "&";
       }
     }
