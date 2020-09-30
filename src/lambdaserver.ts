@@ -246,7 +246,12 @@ export default class LambdaServer extends Webda {
         ctx.statusCode = err;
         this.flushHeaders(ctx);
       } else {
-        this.log("ERROR", err);
+        this.log(
+          "ERROR",
+          `lambdaServer::executor failed (${
+            err.message || err
+          }) method=${method} resourcePath=${resourcePath} userId=${ctx.getCurrentUserId()}`
+        );
         ctx.statusCode = 500;
       }
       return this.handleLambdaReturn(ctx);
