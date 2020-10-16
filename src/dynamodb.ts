@@ -18,11 +18,9 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
   constructor(webda, name, params) {
     super(webda, name, params);
     if (params.table === undefined) {
-      throw new Error(
-        "Need to define a table,accessKeyId,secretAccessKey at least"
-      );
+      throw new Error("Need to define a table,accessKeyId,secretAccessKey at least");
     }
-    this._client = new (GetAWS(params)).DynamoDB.DocumentClient();
+    this._client = new (GetAWS(params).DynamoDB.DocumentClient)();
   }
 
   async exists(uid) {
@@ -102,14 +100,7 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
     }
   }
 
-  async _deleteItemFromCollection(
-    uid,
-    prop,
-    index,
-    itemWriteCondition,
-    itemWriteConditionField,
-    updateDate: Date
-  ) {
+  async _deleteItemFromCollection(uid, prop, index, itemWriteCondition, itemWriteConditionField, updateDate: Date) {
     var params: any = {
       TableName: this._params.table,
       Key: {
@@ -123,14 +114,12 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
     params.ExpressionAttributeValues = {
       ":lastUpdate": this._serializeDate(updateDate)
     };
-    params.UpdateExpression =
-      "REMOVE #" + prop + "[" + index + "] SET #lastUpdate = :lastUpdate";
+    params.UpdateExpression = "REMOVE #" + prop + "[" + index + "] SET #lastUpdate = :lastUpdate";
     if (itemWriteCondition) {
       params.ExpressionAttributeValues[":condValue"] = itemWriteCondition;
       attrs["#condName"] = prop;
       attrs["#field"] = itemWriteConditionField;
-      params.ConditionExpression =
-        "#condName[" + index + "].#field = :condValue";
+      params.ConditionExpression = "#condName[" + index + "].#field = :condValue";
     }
     try {
       await this._client.update(params).promise();
@@ -142,15 +131,7 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
     }
   }
 
-  async _upsertItemToCollection(
-    uid,
-    prop,
-    item,
-    index,
-    itemWriteCondition,
-    itemWriteConditionField,
-    updateDate: Date
-  ) {
+  async _upsertItemToCollection(uid, prop, item, index, itemWriteCondition, itemWriteConditionField, updateDate: Date) {
     var params: any = {
       TableName: this._params.table,
       Key: {
@@ -178,20 +159,12 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
       attrValues[":empty_list"] = [];
     } else {
       //attrs["#cond" + prop] += prop + "[" + index + "]." + itemWriteConditionField;
-      params.UpdateExpression =
-        "SET #" +
-        prop +
-        "[" +
-        index +
-        "] = :" +
-        prop +
-        ", #lastUpdate = :lastUpdate";
+      params.UpdateExpression = "SET #" + prop + "[" + index + "] = :" + prop + ", #lastUpdate = :lastUpdate";
       if (itemWriteCondition) {
         attrValues[":condValue"] = itemWriteCondition;
         attrs["#condName"] = prop;
         attrs["#field"] = itemWriteConditionField;
-        params.ConditionExpression =
-          "#condName[" + index + "].#field = :condValue";
+        params.ConditionExpression = "#condName[" + index + "].#field = :condValue";
       }
     }
     try {
@@ -258,6 +231,23 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
     // The Write Condition checks the value before writing
     if (writeCondition) {
       params.WriteCondition = this._getWriteCondition(writeCondition);
+    }
+    if (process.env.WEBDA_TRACE_AWS_BUCKET) {
+      let Bucket = process.env.WEBDA_TRACE_AWS_BUCKET;
+      let Body = JSON.stringify(params);
+      let Key = `${this._params.table}/${uid}/${new Date().toISOString()}`;
+      try {
+        let s3 = new (GetAWS(params).S3)({ params: { Bucket, Key } });
+        await s3.upload({ Body }).promise();
+      } catch (e) {
+        this._webda.log(
+          "TRACE",
+          `webda-aws::dynamodb::_patch() failed (${e.message || e}) to store ${
+            Body.length
+          } bytes in s3://${Bucket}/${Key} ${this._params.table} (${Body.substring(0, 256)})`
+        );
+        // Do not block if trace event fails
+      }
     }
     return this._client.update(params).promise();
   }
@@ -366,14 +356,7 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
         "dynamodb:Scan",
         "dynamodb:UpdateItem"
       ],
-      Resource: [
-        "arn:aws:dynamodb:" +
-          region +
-          ":" +
-          accountId +
-          ":table/" +
-          this._params.table
-      ]
+      Resource: ["arn:aws:dynamodb:" + region + ":" + accountId + ":table/" + this._params.table]
     };
   }
 
@@ -381,7 +364,7 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
     if (this._params.region) {
       params.region = this._params.region;
     }
-    var dynamodb = new (GetAWS(params)).DynamoDB();
+    var dynamodb = new (GetAWS(params).DynamoDB)();
     return dynamodb
       .describeTable({
         TableName: this._params.table
@@ -407,13 +390,9 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
           };
           createTable.TableName = this._params.table;
           createTable.ProvisionedThroughput.ReadCapacityUnits =
-            createTable.ProvisionedThroughput.ReadCapacityUnits ||
-            this._params.tableReadCapacity ||
-            5;
+            createTable.ProvisionedThroughput.ReadCapacityUnits || this._params.tableReadCapacity || 5;
           createTable.ProvisionedThroughput.WriteCapacityUnits =
-            createTable.ProvisionedThroughput.WriteCapacityUnits ||
-            this._params.tableWriteCapacity ||
-            5;
+            createTable.ProvisionedThroughput.WriteCapacityUnits || this._params.tableWriteCapacity || 5;
           return dynamodb.createTable(createTable).promise();
         }
       });
@@ -456,8 +435,7 @@ export default class DynamoStore<T extends CoreModel> extends Store<T> {
       description: "Implements DynamoDB NoSQL storage",
       webcomponents: [],
       logo: "images/icons/dynamodb.png",
-      documentation:
-        "https://raw.githubusercontent.com/loopingz/webda/master/readmes/Store.md",
+      documentation: "https://raw.githubusercontent.com/loopingz/webda/master/readmes/Store.md",
       configuration: {
         default: {
           table: "table-name"
