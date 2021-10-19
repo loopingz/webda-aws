@@ -3,3 +3,5 @@
 # webda-aws module
 
 This project allows you to use DynamoDB Store, SQS, CloudWatchLogger and SecretsManager
+
+DEPRECATED: Use [webda.io](github.com/loopingz/webda.io/)
